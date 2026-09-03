@@ -1,0 +1,606 @@
+{% extends "base.html" %}
+
+{% block title %}Reflex - Retailer Dashboard{% endblock %}
+
+{% block content %}
+<nav class="navbar">
+    <div class="nav-brand">
+        <span class="logo-small">⚡</span>
+        <span>Reflex</span>
+    </div>
+    <div class="nav-actions">
+        <button class="icon-btn" id="notif-btn" title="Notifications">
+            🔔
+            <span class="badge hidden" id="notif-badge">0</span>
+        </button>
+        <button class="icon-btn" id="logout-btn" title="Logout">🚪</button>
+    </div>
+</nav>
+
+<main class="dashboard">
+    <!-- Stats Cards -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-value" id="stat-pending">0</div>
+            <div class="stat-label">Pending</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="stat-active">0</div>
+            <div class="stat-label">Active</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="stat-delivered">0</div>
+            <div class="stat-label">Delivered</div>
+        </div>
+    </div>
+
+    <!-- Action Button -->
+    <button class="fab" id="new-delivery-btn" title="New Delivery Request">
+        <span>+</span>
+    </button>
+
+    <!-- Deliveries List -->
+    <div class="section-header">
+        <h2>My Deliveries</h2>
+        <div class="filter-tabs">
+            <button class="tab active" data-filter="all">All</button>
+            <button class="tab" data-filter="pending">Pending</button>
+            <button class="tab" data-filter="active">Active</button>
+            <button class="tab" data-filter="delivered">Done</button>
+        </div>
+    </div>
+
+    <div class="deliveries-list" id="deliveries-list">
+        <div class="empty-state">
+            <div class="empty-icon">📦</div>
+            <p>No deliveries yet</p>
+            <p class="empty-sub">Tap + to create your first request</p>
+        </div>
+    </div>
+</main>
+
+<!-- New Delivery Modal -->
+<div class="modal hidden" id="new-delivery-modal">
+    <div class="modal-overlay"></div>
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>New Delivery Request</h3>
+            <button class="modal-close">&times;</button>
+        </div>
+        <form id="new-delivery-form" class="modal-body">
+            <div class="form-group">
+                <label>Customer Name *</label>
+                <input type="text" name="customer_name" placeholder="e.g. John Kamau" required>
+            </div>
+            <div class="form-group">
+                <label>Customer Phone *</label>
+                <input type="tel" name="customer_phone" placeholder="2547XXXXXXXX" required>
+            </div>
+            <div class="form-group">
+                <label>Delivery Address *</label>
+                <textarea name="customer_address" placeholder="Full address including estate, building, floor..." 
+                          rows="3" required></textarea>
+                <button type="button" class="btn-link" id="get-location-btn">📍 Use my current location</button>
+            </div>
+            <div class="form-group">
+                <label>Item Description *</label>
+                <textarea name="item_description" placeholder="What needs to be delivered?" 
+                          rows="2" required></textarea>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Item Value (KES)</label>
+                    <input type="number" name="item_value" placeholder="0.00" min="0" step="0.01">
+                </div>
+                <div class="form-group">
+                    <label>Est. Delivery</label>
+                    <input type="datetime-local" name="estimated_delivery">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Delivery Notes</label>
+                <textarea name="delivery_notes" placeholder="Any special instructions..." rows="2"></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary btn-full">Create Delivery Request</button>
+        </form>
+    </div>
+</div>
+
+<!-- Delivery Detail Modal -->
+<div class="modal hidden" id="delivery-detail-modal">
+    <div class="modal-overlay"></div>
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Delivery Details</h3>
+            <button class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body" id="delivery-detail-content">
+            <!-- Populated by JS -->
+        </div>
+    </div>
+</div>
+
+<!-- QR Code Modal -->
+<div class="modal hidden" id="qr-modal">
+    <div class="modal-overlay"></div>
+    <div class="modal-content modal-sm">
+        <div class="modal-header">
+            <h3>Delivery QR Code</h3>
+            <button class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body text-center">
+            <img id="qr-image" src="" alt="QR Code" class="qr-image">
+            <p class="qr-code-text" id="qr-code-text"></p>
+            <p class="text-muted">Show this to the rider for confirmation</p>
+        </div>
+    </div>
+</div>
+
+<style>
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.stat-card {
+    background: white;
+    border-radius: 12px;
+    padding: 16px;
+    text-align: center;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.stat-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: #2563eb;
+}
+
+.stat-label {
+    font-size: 12px;
+    color: #64748b;
+    margin-top: 4px;
+}
+
+.fab {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: #2563eb;
+    color: white;
+    border: none;
+    font-size: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+    cursor: pointer;
+    z-index: 100;
+    transition: transform 0.2s;
+}
+
+.fab:active { transform: scale(0.95); }
+
+.filter-tabs {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.tab {
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: 1px solid #e2e8f0;
+    background: white;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.tab.active {
+    background: #2563eb;
+    color: white;
+    border-color: #2563eb;
+}
+
+.delivery-card {
+    background: white;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+    border-left: 4px solid #e2e8f0;
+}
+
+.delivery-card:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.delivery-card.status-pending { border-left-color: #f59e0b; }
+.delivery-card.status-assigned { border-left-color: #3b82f6; }
+.delivery-card.status-picked_up { border-left-color: #8b5cf6; }
+.delivery-card.status-in_transit { border-left-color: #06b6d4; }
+.delivery-card.status-delivered { border-left-color: #10b981; }
+.delivery-card.status-failed { border-left-color: #ef4444; }
+
+.delivery-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: start;
+    margin-bottom: 8px;
+}
+
+.delivery-customer {
+    font-weight: 600;
+    color: #1e293b;
+}
+
+.delivery-status {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 12px;
+    text-transform: uppercase;
+}
+
+.status-pending .delivery-status { background: #fef3c7; color: #92400e; }
+.status-assigned .delivery-status { background: #dbeafe; color: #1e40af; }
+.status-picked_up .delivery-status { background: #ede9fe; color: #5b21b6; }
+.status-in_transit .delivery-status { background: #cffafe; color: #155e75; }
+.status-delivered .delivery-status { background: #d1fae5; color: #065f46; }
+.status-failed .delivery-status { background: #fee2e2; color: #991b1b; }
+
+.delivery-address {
+    font-size: 13px;
+    color: #64748b;
+    margin-bottom: 8px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.delivery-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    color: #94a3b8;
+}
+
+.delivery-item {
+    font-size: 13px;
+    color: #475569;
+    margin-bottom: 8px;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.qr-image {
+    max-width: 200px;
+    margin: 16px auto;
+    display: block;
+}
+
+.qr-code-text {
+    font-family: monospace;
+    font-size: 14px;
+    color: #475569;
+    word-break: break-all;
+}
+
+.timeline {
+    margin: 16px 0;
+    padding-left: 20px;
+    border-left: 2px solid #e2e8f0;
+}
+
+.timeline-item {
+    position: relative;
+    padding-bottom: 16px;
+}
+
+.timeline-item::before {
+    content: '';
+    position: absolute;
+    left: -25px;
+    top: 4px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #2563eb;
+    border: 2px solid white;
+    box-shadow: 0 0 0 2px #2563eb;
+}
+
+.timeline-time {
+    font-size: 12px;
+    color: #94a3b8;
+}
+
+.timeline-status {
+    font-weight: 600;
+    color: #1e293b;
+}
+
+.timeline-notes {
+    font-size: 13px;
+    color: #64748b;
+}
+</style>
+
+<script>
+let currentFilter = 'all';
+let deliveriesCache = [];
+
+// Load deliveries
+async function loadDeliveries() {
+    try {
+        const res = await apiGet('/api/deliveries');
+        deliveriesCache = res.deliveries || [];
+        renderDeliveries();
+        updateStats();
+    } catch (err) {
+        console.error('Failed to load deliveries:', err);
+    }
+}
+
+function updateStats() {
+    const pending = deliveriesCache.filter(d => d.status === 'pending').length;
+    const active = deliveriesCache.filter(d => ['assigned','picked_up','in_transit'].includes(d.status)).length;
+    const delivered = deliveriesCache.filter(d => d.status === 'delivered').length;
+
+    document.getElementById('stat-pending').textContent = pending;
+    document.getElementById('stat-active').textContent = active;
+    document.getElementById('stat-delivered').textContent = delivered;
+}
+
+function renderDeliveries() {
+    const list = document.getElementById('deliveries-list');
+    let filtered = deliveriesCache;
+
+    if (currentFilter === 'pending') {
+        filtered = deliveriesCache.filter(d => d.status === 'pending');
+    } else if (currentFilter === 'active') {
+        filtered = deliveriesCache.filter(d => ['assigned','picked_up','in_transit'].includes(d.status));
+    } else if (currentFilter === 'delivered') {
+        filtered = deliveriesCache.filter(d => ['delivered','failed','cancelled'].includes(d.status));
+    }
+
+    if (filtered.length === 0) {
+        list.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-icon">📦</div>
+                <p>No ${currentFilter === 'all' ? '' : currentFilter} deliveries</p>
+            </div>
+        `;
+        return;
+    }
+
+    list.innerHTML = filtered.map(d => `
+        <div class="delivery-card status-${d.status}" data-id="${d.id}">
+            <div class="delivery-header">
+                <div>
+                    <div class="delivery-customer">${escapeHtml(d.customer_name)}</div>
+                    <div class="delivery-address">📍 ${escapeHtml(d.customer_address)}</div>
+                </div>
+                <span class="delivery-status">${formatStatus(d.status)}</span>
+            </div>
+            <div class="delivery-item">📋 ${escapeHtml(d.item_description)}</div>
+            <div class="delivery-meta">
+                <span>${d.rider ? '🏍️ ' + escapeHtml(d.rider.name) : '⏳ Awaiting assignment'}</span>
+                <span>${timeAgo(d.created_at)}</span>
+            </div>
+        </div>
+    `).join('');
+
+    // Add click handlers
+    list.querySelectorAll('.delivery-card').forEach(card => {
+        card.addEventListener('click', () => showDeliveryDetail(card.dataset.id));
+    });
+}
+
+// Filter tabs
+document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        currentFilter = tab.dataset.filter;
+        renderDeliveries();
+    });
+});
+
+// New delivery modal
+const newDeliveryModal = document.getElementById('new-delivery-modal');
+document.getElementById('new-delivery-btn').addEventListener('click', () => {
+    newDeliveryModal.classList.remove('hidden');
+});
+
+newDeliveryModal.querySelector('.modal-close').addEventListener('click', () => {
+    newDeliveryModal.classList.add('hidden');
+});
+newDeliveryModal.querySelector('.modal-overlay').addEventListener('click', () => {
+    newDeliveryModal.classList.add('hidden');
+});
+
+// Get location
+document.getElementById('get-location-btn').addEventListener('click', () => {
+    if (!navigator.geolocation) {
+        showToast('Geolocation not supported', 'error');
+        return;
+    }
+    navigator.geolocation.getCurrentPosition(
+        pos => {
+            showToast('Location captured!', 'success');
+            // Store in form data
+            const form = document.getElementById('new-delivery-form');
+            form.dataset.lat = pos.coords.latitude;
+            form.dataset.lng = pos.coords.longitude;
+        },
+        err => showToast('Could not get location', 'error')
+    );
+});
+
+// Create delivery
+document.getElementById('new-delivery-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const form = e.target;
+    const formData = new FormData(form);
+
+    const data = {
+        customer_name: formData.get('customer_name'),
+        customer_phone: formData.get('customer_phone'),
+        customer_address: formData.get('customer_address'),
+        item_description: formData.get('item_description'),
+        item_value: parseFloat(formData.get('item_value')) || null,
+        delivery_notes: formData.get('delivery_notes'),
+        estimated_delivery: formData.get('estimated_delivery') || null,
+        customer_lat: parseFloat(form.dataset.lat) || null,
+        customer_lng: parseFloat(form.dataset.lng) || null
+    };
+
+    try {
+        const res = await apiPost('/api/deliveries', data);
+        showToast('Delivery request created!', 'success');
+        newDeliveryModal.classList.add('hidden');
+        form.reset();
+        delete form.dataset.lat;
+        delete form.dataset.lng;
+
+        // Emit real-time event
+        if (socket) {
+            socket.emit('new_delivery_request', { token: getToken() });
+        }
+
+        loadDeliveries();
+    } catch (err) {
+        showToast(err.message || 'Failed to create delivery', 'error');
+    }
+});
+
+// Show delivery detail
+async function showDeliveryDetail(deliveryId) {
+    const delivery = deliveriesCache.find(d => d.id === deliveryId);
+    if (!delivery) return;
+
+    const modal = document.getElementById('delivery-detail-modal');
+    const content = document.getElementById('delivery-detail-content');
+
+    let statusHistoryHtml = '';
+    if (delivery.status_history && delivery.status_history.length > 0) {
+        statusHistoryHtml = `
+            <div class="section-title">Status History</div>
+            <div class="timeline">
+                ${delivery.status_history.map(h => `
+                    <div class="timeline-item">
+                        <div class="timeline-time">${formatDateTime(h.created_at)}</div>
+                        <div class="timeline-status">${formatStatus(h.status)}</div>
+                        ${h.notes ? `<div class="timeline-notes">${escapeHtml(h.notes)}</div>` : ''}
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+
+    content.innerHTML = `
+        <div class="detail-section">
+            <div class="detail-row">
+                <span class="detail-label">Customer</span>
+                <span class="detail-value">${escapeHtml(delivery.customer_name)}</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">Phone</span>
+                <span class="detail-value">
+                    <a href="tel:${delivery.customer_phone}">${delivery.customer_phone}</a>
+                </span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">Address</span>
+                <span class="detail-value">${escapeHtml(delivery.customer_address)}</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">Item</span>
+                <span class="detail-value">${escapeHtml(delivery.item_description)}</span>
+            </div>
+            ${delivery.item_value ? `
+            <div class="detail-row">
+                <span class="detail-label">Value</span>
+                <span class="detail-value">KES ${delivery.item_value.toLocaleString()}</span>
+            </div>` : ''}
+            ${delivery.delivery_notes ? `
+            <div class="detail-row">
+                <span class="detail-label">Notes</span>
+                <span class="detail-value">${escapeHtml(delivery.delivery_notes)}</span>
+            </div>` : ''}
+            <div class="detail-row">
+                <span class="detail-label">Status</span>
+                <span class="detail-value status-badge status-${delivery.status}">${formatStatus(delivery.status)}</span>
+            </div>
+            ${delivery.rider ? `
+            <div class="detail-row">
+                <span class="detail-label">Rider</span>
+                <span class="detail-value">${escapeHtml(delivery.rider.name)} (${delivery.rider.phone})</span>
+            </div>` : ''}
+            <div class="detail-row">
+                <span class="detail-label">Created</span>
+                <span class="detail-value">${formatDateTime(delivery.created_at)}</span>
+            </div>
+        </div>
+        ${statusHistoryHtml}
+        <div class="detail-actions">
+            <button class="btn btn-secondary" onclick="showQRCode('${delivery.id}')">
+                📱 Show QR Code
+            </button>
+        </div>
+    `;
+
+    modal.classList.remove('hidden');
+}
+
+document.querySelector('#delivery-detail-modal .modal-close').addEventListener('click', () => {
+    document.getElementById('delivery-detail-modal').classList.add('hidden');
+});
+document.querySelector('#delivery-detail-modal .modal-overlay').addEventListener('click', () => {
+    document.getElementById('delivery-detail-modal').classList.add('hidden');
+});
+
+// Show QR Code
+async function showQRCode(deliveryId) {
+    try {
+        const res = await apiGet(`/api/deliveries/${deliveryId}/qr`);
+        document.getElementById('qr-image').src = res.qr_image_url;
+        document.getElementById('qr-code-text').textContent = res.qr_code;
+        document.getElementById('qr-modal').classList.remove('hidden');
+    } catch (err) {
+        showToast('Failed to load QR code', 'error');
+    }
+}
+
+document.querySelector('#qr-modal .modal-close').addEventListener('click', () => {
+    document.getElementById('qr-modal').classList.add('hidden');
+});
+document.querySelector('#qr-modal .modal-overlay').addEventListener('click', () => {
+    document.getElementById('qr-modal').classList.add('hidden');
+});
+
+// Real-time updates
+function onDeliveryUpdate(data) {
+    // Refresh list when status changes
+    loadDeliveries();
+    showToast(`Delivery updated: ${formatStatus(data.new_status)}`, 'info');
+}
+
+// Initialize
+loadDeliveries();
+</script>
+{% endblock %}

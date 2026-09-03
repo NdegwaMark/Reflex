@@ -1,0 +1,560 @@
+{% extends "base.html" %}
+
+{% block title %}Reflex - Dispatcher Dashboard{% endblock %}
+
+{% block content %}
+<nav class="navbar">
+    <div class="nav-brand">
+        <span class="logo-small">⚡</span>
+        <span>Reflex Dispatch</span>
+    </div>
+    <div class="nav-actions">
+        <button class="icon-btn" id="refresh-btn" title="Refresh">🔄</button>
+        <button class="icon-btn" id="logout-btn" title="Logout">🚪</button>
+    </div>
+</nav>
+
+<main class="dashboard">
+    <!-- Dashboard Stats -->
+    <div class="dashboard-stats">
+        <div class="dash-stat">
+            <div class="dash-stat-value" id="dash-pending">0</div>
+            <div class="dash-stat-label">Pending</div>
+        </div>
+        <div class="dash-stat">
+            <div class="dash-stat-value" id="dash-assigned">0</div>
+            <div class="dash-stat-label">Assigned</div>
+        </div>
+        <div class="dash-stat">
+            <div class="dash-stat-value" id="dash-transit">0</div>
+            <div class="dash-stat-label">In Transit</div>
+        </div>
+        <div class="dash-stat">
+            <div class="dash-stat-value" id="dash-delivered">0</div>
+            <div class="dash-stat-label">Done Today</div>
+        </div>
+        <div class="dash-stat">
+            <div class="dash-stat-value" id="dash-riders">0</div>
+            <div class="dash-stat-label">Riders Free</div>
+        </div>
+    </div>
+
+    <!-- Main Content Grid -->
+    <div class="dispatch-grid">
+        <!-- Open Requests Panel -->
+        <div class="panel">
+            <div class="panel-header">
+                <h3>📥 Open Requests</h3>
+                <span class="badge" id="open-count">0</span>
+            </div>
+            <div class="panel-body" id="open-requests-list">
+                <div class="empty-state small">
+                    <p>No open requests</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Active Deliveries Panel -->
+        <div class="panel">
+            <div class="panel-header">
+                <h3>🚚 Active Deliveries</h3>
+                <span class="badge" id="active-count">0</span>
+            </div>
+            <div class="panel-body" id="active-deliveries-list">
+                <div class="empty-state small">
+                    <p>No active deliveries</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Available Riders Panel -->
+        <div class="panel">
+            <div class="panel-header">
+                <h3>🏍️ Available Riders</h3>
+                <span class="badge" id="riders-count">0</span>
+            </div>
+            <div class="panel-body" id="riders-list">
+                <div class="empty-state small">
+                    <p>No riders available</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<!-- Assign Modal -->
+<div class="modal hidden" id="assign-modal">
+    <div class="modal-overlay"></div>
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Assign Delivery</h3>
+            <button class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="assign-delivery-info" id="assign-delivery-info"></div>
+            <div class="form-group">
+                <label>Select Rider</label>
+                <div class="rider-select-list" id="rider-select-list"></div>
+            </div>
+            <button class="btn btn-primary btn-full" id="confirm-assign-btn" disabled>
+                Confirm Assignment
+            </button>
+        </div>
+    </div>
+</div>
+
+<style>
+.dashboard-stats {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.dash-stat {
+    background: white;
+    border-radius: 10px;
+    padding: 14px 10px;
+    text-align: center;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+
+.dash-stat-value {
+    font-size: 22px;
+    font-weight: 700;
+    color: #2563eb;
+}
+
+.dash-stat-label {
+    font-size: 11px;
+    color: #64748b;
+    margin-top: 2px;
+}
+
+.dispatch-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+}
+
+@media (min-width: 768px) {
+    .dispatch-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+    .dispatch-grid .panel:first-child {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (min-width: 1024px) {
+    .dispatch-grid {
+        grid-template-columns: 1fr 1fr 1fr;
+    }
+    .dispatch-grid .panel:first-child {
+        grid-column: 1 / 2;
+    }
+}
+
+.panel {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    overflow: hidden;
+}
+
+.panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 16px;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.panel-header h3 {
+    font-size: 15px;
+    font-weight: 600;
+    margin: 0;
+}
+
+.panel-body {
+    padding: 12px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.request-card {
+    background: #f8fafc;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 8px;
+    border-left: 3px solid #f59e0b;
+}
+
+.request-card:hover {
+    background: #f1f5f9;
+}
+
+.request-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: start;
+    margin-bottom: 6px;
+}
+
+.request-retailer {
+    font-size: 12px;
+    font-weight: 600;
+    color: #2563eb;
+}
+
+.request-time {
+    font-size: 11px;
+    color: #94a3b8;
+}
+
+.request-customer {
+    font-weight: 600;
+    font-size: 14px;
+    color: #1e293b;
+    margin-bottom: 4px;
+}
+
+.request-address {
+    font-size: 12px;
+    color: #64748b;
+    margin-bottom: 6px;
+}
+
+.request-item {
+    font-size: 12px;
+    color: #475569;
+    margin-bottom: 8px;
+}
+
+.request-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.btn-sm {
+    padding: 6px 12px;
+    font-size: 12px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    font-weight: 500;
+}
+
+.btn-assign {
+    background: #2563eb;
+    color: white;
+}
+
+.btn-assign:hover { background: #1d4ed8; }
+
+.rider-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    border-radius: 8px;
+    margin-bottom: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 2px solid transparent;
+}
+
+.rider-card:hover {
+    background: #f8fafc;
+}
+
+.rider-card.selected {
+    border-color: #2563eb;
+    background: #eff6ff;
+}
+
+.rider-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: #dbeafe;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+}
+
+.rider-info {
+    flex: 1;
+}
+
+.rider-name {
+    font-weight: 600;
+    font-size: 13px;
+    color: #1e293b;
+}
+
+.rider-meta {
+    font-size: 11px;
+    color: #64748b;
+}
+
+.rider-load {
+    font-size: 12px;
+    font-weight: 600;
+    color: #2563eb;
+    background: #dbeafe;
+    padding: 2px 8px;
+    border-radius: 10px;
+}
+
+.assign-delivery-info {
+    background: #f8fafc;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 16px;
+}
+
+.assign-delivery-info .customer {
+    font-weight: 600;
+    color: #1e293b;
+}
+
+.assign-delivery-info .address {
+    font-size: 13px;
+    color: #64748b;
+    margin-top: 4px;
+}
+
+.delivery-card-small {
+    background: #f8fafc;
+    border-radius: 8px;
+    padding: 10px;
+    margin-bottom: 6px;
+    border-left: 3px solid #3b82f6;
+}
+
+.delivery-card-small .status-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.delivery-card-small .customer {
+    font-weight: 600;
+    font-size: 13px;
+}
+
+.delivery-card-small .rider-name {
+    font-size: 12px;
+    color: #2563eb;
+}
+</style>
+
+<script>
+let openRequests = [];
+let activeDeliveries = [];
+let availableRiders = [];
+let selectedDeliveryId = null;
+let selectedRiderId = null;
+
+async function loadDashboard() {
+    await Promise.all([
+        loadOpenRequests(),
+        loadActiveDeliveries(),
+        loadAvailableRiders(),
+        loadStats()
+    ]);
+}
+
+async function loadStats() {
+    try {
+        const res = await apiGet('/api/dispatch/dashboard');
+        const s = res.stats;
+        document.getElementById('dash-pending').textContent = s.pending;
+        document.getElementById('dash-assigned').textContent = s.assigned;
+        document.getElementById('dash-transit').textContent = s.in_transit;
+        document.getElementById('dash-delivered').textContent = s.delivered_today;
+        document.getElementById('dash-riders').textContent = s.available_riders;
+    } catch (err) {
+        console.error('Stats error:', err);
+    }
+}
+
+async function loadOpenRequests() {
+    try {
+        const res = await apiGet('/api/dispatch/open-requests');
+        openRequests = res.deliveries || [];
+        document.getElementById('open-count').textContent = openRequests.length;
+
+        const list = document.getElementById('open-requests-list');
+        if (openRequests.length === 0) {
+            list.innerHTML = '<div class="empty-state small"><p>No open requests</p></div>';
+            return;
+        }
+
+        list.innerHTML = openRequests.map(d => `
+            <div class="request-card" data-id="${d.id}">
+                <div class="request-header">
+                    <span class="request-retailer">${escapeHtml(d.retailer?.name || 'Unknown')}</span>
+                    <span class="request-time">${timeAgo(d.created_at)}</span>
+                </div>
+                <div class="request-customer">${escapeHtml(d.customer_name)}</div>
+                <div class="request-address">📍 ${escapeHtml(d.customer_address)}</div>
+                <div class="request-item">📋 ${escapeHtml(d.item_description)}</div>
+                <div class="request-actions">
+                    <button class="btn-sm btn-assign" onclick="openAssignModal('${d.id}')">
+                        Assign Rider
+                    </button>
+                </div>
+            </div>
+        `).join('');
+    } catch (err) {
+        console.error('Open requests error:', err);
+    }
+}
+
+async function loadActiveDeliveries() {
+    try {
+        const res = await apiGet('/api/deliveries?status=active');
+        activeDeliveries = res.deliveries || [];
+        document.getElementById('active-count').textContent = activeDeliveries.length;
+
+        const list = document.getElementById('active-deliveries-list');
+        if (activeDeliveries.length === 0) {
+            list.innerHTML = '<div class="empty-state small"><p>No active deliveries</p></div>';
+            return;
+        }
+
+        list.innerHTML = activeDeliveries.map(d => `
+            <div class="delivery-card-small">
+                <div class="status-row">
+                    <span class="customer">${escapeHtml(d.customer_name)}</span>
+                    <span class="delivery-status" style="font-size:10px;padding:2px 8px;border-radius:10px;background:${getStatusColor(d.status)};color:white;">
+                        ${formatStatus(d.status)}
+                    </span>
+                </div>
+                <div class="rider-name">🏍️ ${escapeHtml(d.rider?.name || 'Unassigned')}</div>
+                <div style="font-size:11px;color:#94a3b8;margin-top:2px;">${escapeHtml(d.customer_address)}</div>
+            </div>
+        `).join('');
+    } catch (err) {
+        console.error('Active deliveries error:', err);
+    }
+}
+
+async function loadAvailableRiders() {
+    try {
+        const res = await apiGet('/api/dispatch/riders/available');
+        availableRiders = res.riders || [];
+        document.getElementById('riders-count').textContent = availableRiders.length;
+
+        const list = document.getElementById('riders-list');
+        if (availableRiders.length === 0) {
+            list.innerHTML = '<div class="empty-state small"><p>No riders available</p></div>';
+            return;
+        }
+
+        list.innerHTML = availableRiders.map(r => `
+            <div class="rider-card" data-id="${r.id}">
+                <div class="rider-avatar">🏍️</div>
+                <div class="rider-info">
+                    <div class="rider-name">${escapeHtml(r.name)}</div>
+                    <div class="rider-meta">${r.vehicle_type || 'No vehicle'} ${r.vehicle_plate ? '• ' + r.vehicle_plate : ''}</div>
+                </div>
+                <span class="rider-load">${r.active_deliveries} active</span>
+            </div>
+        `).join('');
+    } catch (err) {
+        console.error('Riders error:', err);
+    }
+}
+
+function openAssignModal(deliveryId) {
+    selectedDeliveryId = deliveryId;
+    selectedRiderId = null;
+
+    const delivery = openRequests.find(d => d.id === deliveryId);
+    if (!delivery) return;
+
+    document.getElementById('assign-delivery-info').innerHTML = `
+        <div class="customer">${escapeHtml(delivery.customer_name)}</div>
+        <div class="address">📍 ${escapeHtml(d.customer_address)}</div>
+        <div style="font-size:12px;color:#64748b;margin-top:4px;">📋 ${escapeHtml(delivery.item_description)}</div>
+    `;
+
+    // Render rider selection
+    const riderList = document.getElementById('rider-select-list');
+    riderList.innerHTML = availableRiders.map(r => `
+        <div class="rider-card" data-rider-id="${r.id}" onclick="selectRider('${r.id}')">
+            <div class="rider-avatar">🏍️</div>
+            <div class="rider-info">
+                <div class="rider-name">${escapeHtml(r.name)}</div>
+                <div class="rider-meta">${r.vehicle_type || 'No vehicle'} • ${r.active_deliveries} active</div>
+            </div>
+        </div>
+    `).join('');
+
+    document.getElementById('confirm-assign-btn').disabled = true;
+    document.getElementById('assign-modal').classList.remove('hidden');
+}
+
+function selectRider(riderId) {
+    selectedRiderId = riderId;
+    document.querySelectorAll('#rider-select-list .rider-card').forEach(card => {
+        card.classList.toggle('selected', card.dataset.riderId === riderId);
+    });
+    document.getElementById('confirm-assign-btn').disabled = false;
+}
+
+document.getElementById('confirm-assign-btn').addEventListener('click', async () => {
+    if (!selectedDeliveryId || !selectedRiderId) return;
+
+    const btn = document.getElementById('confirm-assign-btn');
+    btn.disabled = true;
+    btn.textContent = 'Assigning...';
+
+    try {
+        await apiPost('/api/dispatch/assign', {
+            delivery_id: selectedDeliveryId,
+            rider_id: selectedRiderId
+        });
+
+        showToast('Delivery assigned successfully!', 'success');
+        document.getElementById('assign-modal').classList.add('hidden');
+        loadDashboard();
+    } catch (err) {
+        showToast(err.message || 'Assignment failed', 'error');
+        btn.disabled = false;
+        btn.textContent = 'Confirm Assignment';
+    }
+});
+
+document.querySelector('#assign-modal .modal-close').addEventListener('click', () => {
+    document.getElementById('assign-modal').classList.add('hidden');
+});
+document.querySelector('#assign-modal .modal-overlay').addEventListener('click', () => {
+    document.getElementById('assign-modal').classList.add('hidden');
+});
+
+document.getElementById('refresh-btn').addEventListener('click', () => {
+    loadDashboard();
+    showToast('Dashboard refreshed', 'success');
+});
+
+// Real-time updates
+function onNewDelivery(data) {
+    showToast('New delivery request received!', 'info');
+    loadDashboard();
+}
+
+function onDeliveryUpdate(data) {
+    loadDashboard();
+}
+
+// Initialize
+loadDashboard();
+setInterval(loadDashboard, 30000); // Auto-refresh every 30s
+</script>
+{% endblock %}

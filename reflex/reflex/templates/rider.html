@@ -1,0 +1,608 @@
+{% extends "base.html" %}
+
+{% block title %}Reflex - Rider Dashboard{% endblock %}
+
+{% block content %}
+<nav class="navbar">
+    <div class="nav-brand">
+        <span class="logo-small">⚡</span>
+        <span>Reflex Rider</span>
+    </div>
+    <div class="nav-actions">
+        <button class="icon-btn" id="availability-btn" title="Toggle Availability">
+            <span id="availability-icon">🟢</span>
+        </button>
+        <button class="icon-btn" id="logout-btn" title="Logout">🚪</button>
+    </div>
+</nav>
+
+<main class="dashboard">
+    <!-- Rider Stats -->
+    <div class="rider-stats-bar">
+        <div class="rider-stat">
+            <div class="rider-stat-value" id="stat-delivered-today">0</div>
+            <div class="rider-stat-label">Today</div>
+        </div>
+        <div class="rider-stat">
+            <div class="rider-stat-value" id="stat-active">0</div>
+            <div class="rider-stat-label">Active</div>
+        </div>
+        <div class="rider-stat">
+            <div class="rider-stat-value" id="stat-total">0</div>
+            <div class="rider-stat-label">Total</div>
+        </div>
+    </div>
+
+    <!-- Availability Toggle (Mobile prominent) -->
+    <div class="availability-banner" id="availability-banner">
+        <span id="availability-text">You are available for assignments</span>
+        <button class="btn-toggle" id="toggle-availability-btn">Go Offline</button>
+    </div>
+
+    <!-- Deliveries List -->
+    <div class="section-header">
+        <h2>My Deliveries</h2>
+    </div>
+
+    <div class="deliveries-list" id="deliveries-list">
+        <div class="empty-state">
+            <div class="empty-icon">🏍️</div>
+            <p>No active deliveries</p>
+            <p class="empty-sub">Assignments will appear here</p>
+        </div>
+    </div>
+</main>
+
+<!-- Delivery Action Modal -->
+<div class="modal hidden" id="action-modal">
+    <div class="modal-overlay"></div>
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Update Delivery</h3>
+            <button class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body" id="action-modal-content">
+            <!-- Populated by JS -->
+        </div>
+    </div>
+</div>
+
+<!-- QR Scanner Modal -->
+<div class="modal hidden" id="scanner-modal">
+    <div class="modal-overlay"></div>
+    <div class="modal-content modal-full">
+        <div class="modal-header">
+            <h3>📷 Scan QR Code</h3>
+            <button class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body scanner-body">
+            <div id="qr-reader" style="width:100%;max-width:400px;margin:0 auto;"></div>
+            <p class="scanner-hint">Point camera at the customer's QR code</p>
+            <button class="btn btn-secondary btn-full" id="manual-confirm-btn">
+                ✋ Manual Confirm Instead
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Manual Confirm Modal -->
+<div class="modal hidden" id="manual-confirm-modal">
+    <div class="modal-overlay"></div>
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Confirm Delivery</h3>
+            <button class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label>Receiver's Name</label>
+                <input type="text" id="receiver-name" placeholder="Who received the delivery?">
+            </div>
+            <div class="form-group">
+                <label>Notes (optional)</label>
+                <textarea id="confirm-notes" rows="2" placeholder="Any issues or notes..."></textarea>
+            </div>
+            <button class="btn btn-primary btn-full" id="confirm-delivery-btn">
+                ✅ Confirm Delivery
+            </button>
+        </div>
+    </div>
+</div>
+
+<style>
+.rider-stats-bar {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.rider-stat {
+    background: white;
+    border-radius: 12px;
+    padding: 16px;
+    text-align: center;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+
+.rider-stat-value {
+    font-size: 28px;
+    font-weight: 700;
+    color: #2563eb;
+}
+
+.rider-stat-label {
+    font-size: 12px;
+    color: #64748b;
+    margin-top: 4px;
+}
+
+.availability-banner {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+    padding: 14px 16px;
+    border-radius: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    font-size: 14px;
+}
+
+.availability-banner.offline {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+}
+
+.btn-toggle {
+    background: rgba(255,255,255,0.2);
+    border: 1px solid rgba(255,255,255,0.4);
+    color: white;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+    cursor: pointer;
+    font-weight: 500;
+}
+
+.btn-toggle:hover {
+    background: rgba(255,255,255,0.3);
+}
+
+.rider-delivery-card {
+    background: white;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    border-left: 4px solid #3b82f6;
+}
+
+.rider-delivery-card.status-picked_up { border-left-color: #8b5cf6; }
+.rider-delivery-card.status-in_transit { border-left-color: #06b6d4; }
+
+.rider-delivery-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: start;
+    margin-bottom: 10px;
+}
+
+.rider-delivery-customer {
+    font-weight: 600;
+    font-size: 16px;
+    color: #1e293b;
+}
+
+.rider-delivery-phone {
+    font-size: 14px;
+    color: #2563eb;
+    margin-top: 2px;
+}
+
+.rider-delivery-phone a {
+    color: #2563eb;
+    text-decoration: none;
+}
+
+.rider-delivery-address {
+    font-size: 14px;
+    color: #475569;
+    margin-bottom: 10px;
+    padding: 8px;
+    background: #f8fafc;
+    border-radius: 8px;
+}
+
+.rider-delivery-item {
+    font-size: 13px;
+    color: #64748b;
+    margin-bottom: 12px;
+}
+
+.rider-delivery-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.rider-delivery-actions .btn {
+    padding: 12px;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.btn-pickup {
+    background: #8b5cf6;
+    color: white;
+}
+
+.btn-transit {
+    background: #06b6d4;
+    color: white;
+}
+
+.btn-deliver {
+    background: #10b981;
+    color: white;
+    grid-column: 1 / -1;
+}
+
+.btn-scan {
+    background: #f59e0b;
+    color: white;
+    grid-column: 1 / -1;
+}
+
+.btn-fail {
+    background: #ef4444;
+    color: white;
+}
+
+.scanner-body {
+    text-align: center;
+}
+
+.scanner-hint {
+    color: #64748b;
+    font-size: 14px;
+    margin: 16px 0;
+}
+
+.modal-full {
+    max-width: 100%;
+    width: 100%;
+    height: 100vh;
+    border-radius: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-full .modal-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+#qr-reader {
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+#qr-reader video {
+    border-radius: 12px;
+}
+
+#qr-reader__dashboard_section_csr span {
+    display: none !important;
+}
+
+#qr-reader__dashboard_section_swaplink {
+    display: none !important;
+}
+</style>
+
+<script>
+let myDeliveries = [];
+let currentDeliveryId = null;
+let qrScanner = null;
+let isAvailable = true;
+
+async function loadRiderData() {
+    await Promise.all([
+        loadDeliveries(),
+        loadStats(),
+        loadAvailability()
+    ]);
+}
+
+async function loadDeliveries() {
+    try {
+        const res = await apiGet('/api/rider/deliveries');
+        myDeliveries = res.deliveries || [];
+        renderDeliveries();
+    } catch (err) {
+        console.error('Failed to load deliveries:', err);
+    }
+}
+
+async function loadStats() {
+    try {
+        const res = await apiGet('/api/rider/stats');
+        const s = res.stats;
+        document.getElementById('stat-delivered-today').textContent = s.delivered_today;
+        document.getElementById('stat-active').textContent = s.active_deliveries;
+        document.getElementById('stat-total').textContent = s.total_delivered;
+    } catch (err) {
+        console.error('Stats error:', err);
+    }
+}
+
+async function loadAvailability() {
+    try {
+        const user = JSON.parse(localStorage.getItem('reflex_user') || '{}');
+        isAvailable = user.is_available !== false;
+        updateAvailabilityUI();
+    } catch (err) {
+        console.error('Availability error:', err);
+    }
+}
+
+function updateAvailabilityUI() {
+    const banner = document.getElementById('availability-banner');
+    const text = document.getElementById('availability-text');
+    const btn = document.getElementById('toggle-availability-btn');
+    const icon = document.getElementById('availability-icon');
+
+    if (isAvailable) {
+        banner.classList.remove('offline');
+        text.textContent = 'You are available for assignments';
+        btn.textContent = 'Go Offline';
+        icon.textContent = '🟢';
+    } else {
+        banner.classList.add('offline');
+        text.textContent = 'You are offline - no new assignments';
+        btn.textContent = 'Go Online';
+        icon.textContent = '🔴';
+    }
+}
+
+document.getElementById('toggle-availability-btn').addEventListener('click', async () => {
+    try {
+        const res = await apiPut('/api/rider/availability', { available: !isAvailable });
+        isAvailable = res.is_available;
+
+        // Update stored user
+        const user = JSON.parse(localStorage.getItem('reflex_user') || '{}');
+        user.is_available = isAvailable;
+        localStorage.setItem('reflex_user', JSON.stringify(user));
+
+        updateAvailabilityUI();
+        showToast(isAvailable ? 'You are now online' : 'You are now offline', 'success');
+    } catch (err) {
+        showToast('Failed to update availability', 'error');
+    }
+});
+
+function renderDeliveries() {
+    const list = document.getElementById('deliveries-list');
+
+    if (myDeliveries.length === 0) {
+        list.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-icon">🏍️</div>
+                <p>No active deliveries</p>
+                <p class="empty-sub">Assignments will appear here</p>
+            </div>
+        `;
+        return;
+    }
+
+    list.innerHTML = myDeliveries.map(d => {
+        let actions = '';
+        if (d.status === 'assigned') {
+            actions = `
+                <button class="btn btn-pickup" onclick="updateStatus('${d.id}', 'picked_up')">📦 Pick Up</button>
+                <button class="btn btn-fail" onclick="updateStatus('${d.id}', 'failed')">❌ Can't Pick Up</button>
+            `;
+        } else if (d.status === 'picked_up') {
+            actions = `
+                <button class="btn btn-transit" onclick="updateStatus('${d.id}', 'in_transit')">🚀 Start Delivery</button>
+                <button class="btn btn-fail" onclick="updateStatus('${d.id}', 'failed')">❌ Issue</button>
+            `;
+        } else if (d.status === 'in_transit') {
+            actions = `
+                <button class="btn btn-scan" onclick="openScanner('${d.id}')">📷 Scan QR to Confirm</button>
+                <button class="btn btn-deliver" onclick="openManualConfirm('${d.id}')">✋ Manual Confirm</button>
+                <button class="btn btn-fail" onclick="updateStatus('${d.id}', 'failed')">❌ Failed Delivery</button>
+            `;
+        }
+
+        return `
+            <div class="rider-delivery-card status-${d.status}" data-id="${d.id}">
+                <div class="rider-delivery-header">
+                    <div>
+                        <div class="rider-delivery-customer">${escapeHtml(d.customer_name)}</div>
+                        <div class="rider-delivery-phone">
+                            <a href="tel:${d.customer_phone}">📞 ${d.customer_phone}</a>
+                        </div>
+                    </div>
+                    <span class="delivery-status" style="font-size:11px;padding:3px 10px;border-radius:12px;background:${getStatusColor(d.status)};color:white;">
+                        ${formatStatus(d.status)}
+                    </span>
+                </div>
+                <div class="rider-delivery-address">📍 ${escapeHtml(d.customer_address)}</div>
+                <div class="rider-delivery-item">📋 ${escapeHtml(d.item_description)}</div>
+                ${d.delivery_notes ? `<div style="font-size:12px;color:#64748b;margin-bottom:10px;">📝 ${escapeHtml(d.delivery_notes)}</div>` : ''}
+                <div class="rider-delivery-actions">
+                    ${actions}
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+async function updateStatus(deliveryId, status) {
+    const notes = prompt('Add a note (optional):');
+
+    try {
+        // Get current location if available
+        let location = {};
+        if (navigator.geolocation) {
+            try {
+                const pos = await new Promise((resolve, reject) => {
+                    navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
+                });
+                location = {
+                    location_lat: pos.coords.latitude,
+                    location_lng: pos.coords.longitude
+                };
+            } catch (e) {}
+        }
+
+        await apiPut(`/api/deliveries/${deliveryId}/status`, {
+            status: status,
+            notes: notes || '',
+            ...location
+        });
+
+        showToast(`Status updated to ${formatStatus(status)}`, 'success');
+
+        // Also emit via socket for real-time
+        if (socket) {
+            socket.emit('status_update', {
+                token: getToken(),
+                delivery_id: deliveryId,
+                status: status,
+                notes: notes || ''
+            });
+        }
+
+        loadRiderData();
+    } catch (err) {
+        showToast(err.message || 'Failed to update status', 'error');
+    }
+}
+
+// QR Scanner
+function openScanner(deliveryId) {
+    currentDeliveryId = deliveryId;
+    document.getElementById('scanner-modal').classList.remove('hidden');
+
+    if (!qrScanner) {
+        qrScanner = new Html5Qrcode('qr-reader');
+    }
+
+    qrScanner.start(
+        { facingMode: 'environment' },
+        { fps: 10, qrbox: { width: 250, height: 250 } },
+        onScanSuccess,
+        onScanFailure
+    ).catch(err => {
+        console.error('Scanner error:', err);
+        showToast('Camera access denied or unavailable', 'error');
+        closeScanner();
+    });
+}
+
+function onScanSuccess(decodedText) {
+    if (!currentDeliveryId) return;
+
+    // Stop scanner
+    qrScanner.stop().then(() => {
+        closeScanner();
+        confirmDelivery(currentDeliveryId, decodedText, 'qr_scan');
+    });
+}
+
+function onScanFailure(error) {
+    // Ignore continuous scanning errors
+}
+
+function closeScanner() {
+    document.getElementById('scanner-modal').classList.add('hidden');
+    if (qrScanner) {
+        qrScanner.stop().catch(() => {});
+    }
+}
+
+document.querySelector('#scanner-modal .modal-close').addEventListener('click', closeScanner);
+document.querySelector('#scanner-modal .modal-overlay').addEventListener('click', closeScanner);
+
+// Manual confirm
+document.getElementById('manual-confirm-btn').addEventListener('click', () => {
+    closeScanner();
+    openManualConfirm(currentDeliveryId);
+});
+
+function openManualConfirm(deliveryId) {
+    currentDeliveryId = deliveryId;
+    document.getElementById('receiver-name').value = '';
+    document.getElementById('confirm-notes').value = '';
+    document.getElementById('manual-confirm-modal').classList.remove('hidden');
+}
+
+document.getElementById('confirm-delivery-btn').addEventListener('click', async () => {
+    const receiverName = document.getElementById('receiver-name').value.trim();
+    if (!receiverName) {
+        showToast('Please enter receiver name', 'error');
+        return;
+    }
+
+    await confirmDelivery(currentDeliveryId, null, 'manual', receiverName);
+    document.getElementById('manual-confirm-modal').classList.add('hidden');
+});
+
+document.querySelector('#manual-confirm-modal .modal-close').addEventListener('click', () => {
+    document.getElementById('manual-confirm-modal').classList.add('hidden');
+});
+
+async function confirmDelivery(deliveryId, qrCode, method, receiverName) {
+    try {
+        const data = {
+            method: method,
+            confirmed_by: receiverName || 'Customer'
+        };
+        if (qrCode) data.qr_code = qrCode;
+
+        await apiPost(`/api/deliveries/${deliveryId}/confirm`, data);
+        showToast('Delivery confirmed!', 'success');
+        loadRiderData();
+    } catch (err) {
+        showToast(err.message || 'Confirmation failed', 'error');
+    }
+}
+
+// Location tracking
+function startLocationTracking() {
+    if (!navigator.geolocation) return;
+
+    navigator.geolocation.watchPosition(
+        pos => {
+            if (socket) {
+                socket.emit('update_location', {
+                    token: getToken(),
+                    lat: pos.coords.latitude,
+                    lng: pos.coords.longitude
+                });
+            }
+        },
+        err => console.log('Location error:', err),
+        { enableHighAccuracy: true, maximumAge: 30000, timeout: 10000 }
+    );
+}
+
+// Real-time
+function onNewAssignment(data) {
+    showToast('New delivery assigned!', 'success');
+    loadRiderData();
+}
+
+// Initialize
+loadRiderData();
+startLocationTracking();
+
+// Refresh every 30 seconds
+setInterval(loadRiderData, 30000);
+</script>
+{% endblock %}

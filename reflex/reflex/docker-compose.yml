@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    ports:
+      - "5000:5000"
+    environment:
+      - SECRET_KEY=change-me-in-production
+      - JWT_SECRET=change-me-too
+      - DATABASE_URL=sqlite:///data/reflex.db
+      - COMPANY_NAME=Your Retail Business
+    volumes:
+      - ./data:/app/data
+      - ./static/qr_codes:/app/static/qr_codes
+    restart: unless-stopped

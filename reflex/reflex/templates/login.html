@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+
+{% block title %}Reflex - Login{% endblock %}
+
+{% block content %}
+<div class="login-container">
+    <div class="login-card">
+        <div class="brand">
+            <div class="logo">⚡</div>
+            <h1>Reflex</h1>
+            <p>Delivery Coordination for Kenyan Retailers</p>
+        </div>
+
+        <form id="login-form" class="login-form">
+            <div class="form-group">
+                <label for="phone">Phone Number</label>
+                <input type="tel" id="phone" name="phone" placeholder="2547XXXXXXXX" 
+                       value="254711111111" required autocomplete="tel">
+            </div>
+
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" 
+                       value="retailer123" required autocomplete="current-password">
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-full">
+                <span class="btn-text">Sign In</span>
+                <span class="btn-loader hidden"></span>
+            </button>
+        </form>
+
+        <div class="demo-accounts">
+            <p><strong>Demo Accounts:</strong></p>
+            <div class="demo-grid">
+                <button class="demo-btn" data-phone="254711111111" data-pass="retailer123">
+                    <span class="role-badge retailer">Retailer</span>
+                    <span>254711111111</span>
+                </button>
+                <button class="demo-btn" data-phone="254733333333" data-pass="dispatch123">
+                    <span class="role-badge dispatcher">Dispatcher</span>
+                    <span>254733333333</span>
+                </button>
+                <button class="demo-btn" data-phone="254744444444" data-pass="rider123">
+                    <span class="role-badge rider">Rider</span>
+                    <span>254744444444</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.login-container {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%);
+}
+
+.login-card {
+    background: white;
+    border-radius: 16px;
+    padding: 32px;
+    width: 100%;
+    max-width: 400px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+
+.brand {
+    text-align: center;
+    margin-bottom: 28px;
+}
+
+.logo {
+    font-size: 48px;
+    margin-bottom: 8px;
+}
+
+.brand h1 {
+    font-size: 28px;
+    font-weight: 700;
+    color: #1e293b;
+    margin: 0;
+}
+
+.brand p {
+    color: #64748b;
+    margin: 4px 0 0;
+    font-size: 14px;
+}
+
+.demo-accounts {
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid #e2e8f0;
+}
+
+.demo-accounts p {
+    font-size: 12px;
+    color: #64748b;
+    margin-bottom: 10px;
+}
+
+.demo-grid {
+    display: grid;
+    gap: 8px;
+}
+
+.demo-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #f8fafc;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.2s;
+}
+
+.demo-btn:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+}
+
+.role-badge {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 12px;
+    text-transform: uppercase;
+}
+
+.role-badge.retailer { background: #dbeafe; color: #1e40af; }
+.role-badge.dispatcher { background: #fef3c7; color: #92400e; }
+.role-badge.rider { background: #d1fae5; color: #065f46; }
+</style>
+
+<script>
+document.getElementById('login-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = e.target.querySelector('button[type="submit"]');
+    const btnText = btn.querySelector('.btn-text');
+    const btnLoader = btn.querySelector('.btn-loader');
+
+    btnText.classList.add('hidden');
+    btnLoader.classList.remove('hidden');
+    btn.disabled = true;
+
+    try {
+        const res = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                phone: document.getElementById('phone').value,
+                password: document.getElementById('password').value
+            })
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+            localStorage.setItem('reflex_token', data.token);
+            localStorage.setItem('reflex_user', JSON.stringify(data.user));
+
+            // Redirect based on role
+            const role = data.user.role;
+            if (role === 'retailer') window.location.href = '/retailer';
+            else if (role === 'dispatcher') window.location.href = '/dispatcher';
+            else if (role === 'rider') window.location.href = '/rider';
+            else window.location.href = '/';
+        } else {
+            showToast(data.message || 'Login failed', 'error');
+        }
+    } catch (err) {
+        showToast('Network error. Please try again.', 'error');
+    } finally {
+        btnText.classList.remove('hidden');
+        btnLoader.classList.add('hidden');
+        btn.disabled = false;
+    }
+});
+
+// Demo account buttons
+document.querySelectorAll('.demo-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.getElementById('phone').value = btn.dataset.phone;
+        document.getElementById('password').value = btn.dataset.pass;
+        document.getElementById('login-form').dispatchEvent(new Event('submit'));
+    });
+});
+</script>
+{% endblock %}
