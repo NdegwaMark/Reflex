@@ -71,14 +71,14 @@ reflex = ["static/**/*", "templates/**/*"]
 line-length = 100
 target-version = ["py39", "py310", "py311"]
 include = "//.pyi?$//"
-exclude = """
+exclude = '''
 /(
     \.git
   | \.venv
   | build
   | dist
 )/
-"""
+'''
 
 [tool.mypy]
 python_version = "3.11"
