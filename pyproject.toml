@@ -1,0 +1,94 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "reflex"
+version = "1.0.0"
+description = "Delivery Coordination System for Small Kenyan Retailers"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.9"
+authors = [
+    {name = "Reflex Team", email = "reflex@system.local"}
+]
+keywords = ["delivery", "logistics", "retail", "kenya", "coordination", "pwa"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Internet :: WWW/HTTP :: Dynamic Content",
+    "Topic :: Office/Business :: Scheduling",
+]
+
+dependencies = [
+    "flask>=3.0.0,<4.0.0",
+    "flask-socketio>=5.3.0,<6.0.0",
+    "flask-sqlalchemy>=3.1.0,<4.0.0",
+    "flask-cors>=4.0.0,<5.0.0",
+    "pyjwt>=2.8.0,<3.0.0",
+    "werkzeug>=3.0.0,<4.0.0",
+    "qrcode>=7.4.0,<8.0.0",
+    "pillow>=10.0.0,<11.0.0",
+    "gunicorn>=23.0.0,<24.0.0",
+    "eventlet>=0.36.0,<1.0.0",
+    "python-dotenv>=1.0.0,<2.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-flask>=1.3.0",
+    "black>=24.0.0",
+    "flake8>=7.0.0",
+    "mypy>=1.8.0",
+]
+postgres = [
+    "psycopg2-binary>=2.9.0,<3.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/NdegwaMark/Reflex"
+Documentation = "https://github.com/NdegwaMark/Reflex#readme"
+Repository = "https://github.com/NdegwaMark/Reflex.git"
+Issues = "https://github.com/NdegwaMark/Reflex/issues"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["api*", "static*", "templates*"]
+
+[tool.setuptools.package-data]
+reflex = ["static/**/*", "templates/**/*"]
+
+[tool.black]
+line-length = 100
+target-version = ["py39", "py310", "py311"]
+include = "\.pyi?$"
+exclude = """
+/(
+    \.git
+  | \.venv
+  | build
+  | dist
+)/
+"""
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
