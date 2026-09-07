@@ -1,26 +1,19 @@
-services:
-  - type: web
-    name: reflex-api
-    runtime: python
-    plan: starter
-    buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn --worker-class eventlet -w 1 --bind 0.0.0.0:$PORT app:app
-    envVars:
+# Exported from Render on 2026-09-07T19:49:08Z
+version: "1"
+projects:
+- name: reflex
+  environments:
+  - name: Production
+    services:
+    - type: web
+      name: reflex-api
+      runtime: python
+      repo: https://github.com/NdegwaMark/Reflex
+      plan: free
+      envVars:
       - key: PYTHON_VERSION
-        value: 3.11.0
-      - key: SECRET_KEY
-        generateValue: true
-      - key: JWT_SECRET
-        generateValue: true
-      - key: DATABASE_URL
-        fromDatabase:
-          name: reflex-db
-          property: connectionString
-      - key: FLASK_ENV
-        value: production
-
-databases:
-  - name: reflex-db
-    plan: starter
-    databaseName: reflex
-    user: reflex
+        sync: false
+      region: oregon
+      buildCommand: poetry install
+      startCommand: 'gunicorn wsgi : application'
+      autoDeployTrigger: commit
